@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Subjects</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    body{ font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; padding:1.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h3>Subjects</h3>
+    <div class="list-group mb-3">
+      <a th:each="s : ${subjects}" th:href="@{'#subject-' + ${s.id}}" class="list-group-item list-group-item-action" th:text="${s.name}">Subject</a>
+    </div>
+
+    <div th:each="s : ${subjects}">
+      <div th:attr="id='subject-' + ${s.id}" class="card mb-3">
+        <div class="card-body">
+          <h5 class="card-title" th:text="${s.name}">Subject name</h5>
+          <p class="mb-1"><strong>Teacher:</strong> <span th:text="${s.teacher}">Teacher name</span></p>
+
+          <ul class="nav nav-tabs mt-3" role="tablist">
+            <li class="nav-item" role="presentation">
+              <button class="nav-link active"
+                      th:id="${'assign-' + s.id + '-tab'}"
+                      data-bs-toggle="tab"
+                      th:data-bs-target="${'#assign-' + s.id}"
+                      type="button" role="tab">Assignments</button>
+            </li>
+            <li class="nav-item" role="presentation">
+              <button class="nav-link"
+                      th:id="${'res-' + s.id + '-tab'}"
+                      data-bs-toggle="tab"
+                      th:data-bs-target="${'#res-' + s.id}"
+                      type="button" role="tab">Results</button>
+            </li>
+          </ul>
+          <div class="tab-content p-3 border border-top-0">
+            <div class="tab-pane fade show active" th:id="${'assign-' + s.id}" role="tabpanel">
+              <h6>Assignments</h6>
+              <ul>
+                <li th:each="a : ${s.assignments}" th:text="${a}">Assignment</li>
+              </ul>
+            </div>
+            <div class="tab-pane fade" th:id="${'res-' + s.id}" role="tabpanel">
+              <h6>Results</h6>
+              <ul>
+                <li th:each="entry : ${s.results.entrySet()}" th:text="${entry.key + ' - ' + entry.value}">Result</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <p><a href="/dashboard" class="btn btn-outline-secondary">Back to Dashboard</a></p>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

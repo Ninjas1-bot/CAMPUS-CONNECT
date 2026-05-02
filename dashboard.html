@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Campus Connect - Dashboard</title>
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <style>
+    /* small site-specific tweaks */
+    body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial; }
+    .card-title { font-weight: 600; }
+    .event-desc { color: #6c757d; }
+  </style>
+</head>
+
+<body class="bg-light">
+<nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Campus Connect</a>
+    <div class="d-flex">
+  <a href="/announcement" class="btn btn-outline-light btn-sm me-2">Announcement</a>
+  <a href="/profile" class="btn btn-outline-light btn-sm me-2">Profile</a>
+  <a href="/logout" class="btn btn-outline-light btn-sm">Logout</a>
+    </div>
+  </div>
+</nav>
+
+<!-- Left icon sidebar -->
+<div class="position-fixed top-50 start-0 translate-middle-y ms-2" style="z-index:1050;">
+  <div class="d-flex flex-column gap-2">
+    <a href="/subjects" class="btn btn-light shadow-sm p-2" title="Subjects"><span class="fs-5">📚</span></a>
+    <a href="/attendance" class="btn btn-light shadow-sm p-2" title="Attendance"><span class="fs-5">🧾</span></a>
+    <a href="/cgpa" class="btn btn-light shadow-sm p-2" title="CGPA"><span class="fs-5">🎓</span></a>
+    <a href="/progress-view" class="btn btn-light shadow-sm p-2" title="Progress"><span class="fs-5">📈</span></a>
+  </div>
+</div>
+
+<div class="container mt-4">
+  <div th:if="${rsvpSuccess}" class="alert alert-success alert-dismissible fade show" role="alert">
+    <span th:text="${rsvpSuccess}">RSVP successful</span>
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+  </div>
+  <h3>Welcome, <span th:text="${student.name}"></span> 👋</h3>
+  <p>Points: <b th:text="${student.points}"></b> | Streak: <b th:text="${student.studyStreak}"></b> days</p>
+
+  <div class="row g-4">
+    <!-- Teacher-only quick panel -->
+    <div class="col-md-12" th:if="${isTeacher}">
+      <div class="card shadow-sm border-warning">
+        <div class="card-body">
+          <h5 class="card-title text-warning">👩‍🏫 Teacher Panel</h5>
+          <div class="row">
+            <div class="col-md-6">
+              <h6>Mark Attendance (today)</h6>
+              <div class="mb-2">
+                <select id="t-subject" class="form-select form-select-sm">
+                  <option th:each="s : ${subjects}" th:value="${s.id}" th:text="${s.name}"></option>
+                </select>
+              </div>
+              <div style="max-height:160px;overflow:auto;">
+                <div th:each="st : ${students}" class="d-flex align-items-center justify-content-between mb-1">
+                  <div th:text="${st.name}"></div>
+                  <div>
+                    <input type="checkbox" th:attr="data-student=${st.id}" class="form-check-input t-present" />
+                    <button class="btn btn-sm btn-outline-primary t-mark" th:attr="data-student=${st.id}">Save</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div class="col-md-6">
+              <h6>Student Queries</h6>
+              <div style="max-height:180px;overflow:auto;" id="queriesArea">
+                <div th:each="q : ${studentQueries}" class="mb-2 border-bottom pb-2">
+                  <div><small th:text="${q.from}"></small>: <span th:text="${q.question}"></span></div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+    <!-- Events Section -->
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title text-primary">📅 Upcoming Events</h5>
+          <ul class="list-group list-group-flush mt-3">
+            <li class="list-group-item d-flex justify-content-between align-items-start" th:each="e : ${events}">
+              <div>
+                <div><b th:text="${e.title}"></b> <small class="text-muted">(<span th:text="${e.date}"></span>)</small></div>
+                <div class="event-desc mt-1" th:text="${e.description}"></div>
+                <div class="small text-muted mt-1">Attendees: <span th:text="${e.attendees.size()}">0</span></div>
+              </div>
+              <div>
+                <button type="button"
+                        class="btn btn-sm btn-outline-primary rsvp-btn"
+                        th:attr="data-id=${e.id},data-title=${e.title},data-date=${e.date},data-desc=${e.description}">
+                  <span th:if="${student.rsvpedEvents.contains(e.id)}">RSVPed</span>
+                  <span th:unless="${student.rsvpedEvents.contains(e.id)}">RSVP</span>
+                </button>
+              </div>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Progress Section -->
+    <div class="col-md-6">
+      <div class="card shadow-sm">
+        <div class="card-body">
+          <h5 class="card-title text-success">📘 Your Progress</h5>
+          <ul class="list-group list-group-flush mt-3">
+            <li class="list-group-item" th:each="p : ${student.progress}">
+              <span th:text="${p.key}"></span> – <span th:text="${p.value}"></span>%
+              <div class="progress mt-2">
+                <div class="progress-bar bg-success" role="progressbar" 
+                     th:style="'width:' + ${p.value} + '%'" 
+                     th:text="${p.value + '%'}"></div>
+              </div>
+            </li>
+          </ul>
+          <form method="post" action="/progress" class="mt-3">
+            <input type="text" name="course" class="form-control mb-2" placeholder="Course name" required>
+            <input type="number" name="percent" class="form-control mb-2" placeholder="Completion %" min="0" max="100" required>
+            <button class="btn btn-sm btn-success w-100">Update Progress</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Study Streak -->
+    <div class="col-md-12">
+      <div class="card shadow-sm">
+        <div class="card-body text-center">
+          <h5>🔥 Study Streak</h5>
+          <p>Keep it going strong!</p>
+          <div class="d-flex justify-content-center align-items-center gap-3 mb-2">
+            <div>
+              <strong th:text="${studyStreak}">0</strong> days
+            </div>
+            <div>
+              <span th:text="${streakChangePct}"></span>%
+              <span th:if="${studyStreak} &gt; ${prevStudyStreak}" style="color:green">▲</span>
+              <span th:if="${studyStreak} &lt;= ${prevStudyStreak}" style="color:tomato">▼</span>
+            </div>
+          </div>
+          <div class="mb-3" style="display:flex;justify-content:center;">
+            <div style="display:grid;grid-template-columns:repeat(7,18px);gap:6px;">
+              <div th:each="d,iterStat : ${streakDays}" th:classappend="${d}? 'bg-success' : 'bg-light'" style="width:18px;height:18px;border-radius:3px;border:1px solid #e9ecef;"></div>
+            </div>
+          </div>
+          <form method="post" action="/studyday">
+            <button class="btn btn-warning">+ Add Study Day</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Quiz and Bookings Section -->
+    <div class="col-md-12">
+      <div class="card shadow-sm">
+            <div class="card-body text-center">
+          <h5>📚 Quiz and Bookings</h5>
+            <p>
+            <a href="/quiz" class="btn btn-primary">Take Java Quiz</a>
+            <a href="/bookings" class="btn btn-secondary">Events &amp; Booking</a>
+          </p>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+  // handle RSVP button clicks: populate modal then show
+  document.addEventListener('DOMContentLoaded', function() {
+    const modalEl = document.getElementById('rsvpModal');
+    const modal = new bootstrap.Modal(modalEl);
+    document.querySelectorAll('.rsvp-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const title = btn.getAttribute('data-title');
+        const date = btn.getAttribute('data-date');
+        const desc = btn.getAttribute('data-desc');
+        document.getElementById('modalEventTitle').textContent = title;
+        document.getElementById('modalEventDate').textContent = date;
+        document.getElementById('modalEventDesc').textContent = desc;
+        document.getElementById('rsvpEventId').value = id;
+        modal.show();
+      });
+    });
+    // attach submit to confirm button
+    document.getElementById('confirmRsvp').addEventListener('click', function() {
+      document.getElementById('rsvpForm').submit();
+    });
+  });
+</script>
+
+<!-- RSVP modal -->
+<div class="modal fade" id="rsvpModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalEventTitle">Event</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <p><strong>Date:</strong> <span id="modalEventDate"></span></p>
+        <p id="modalEventDesc"></p>
+        <form id="rsvpForm" method="post" action="/rsvp">
+          <input type="hidden" id="rsvpEventId" name="eventId" value="" />
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" id="confirmRsvp" class="btn btn-primary">Confirm RSVP</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Floating teacher & chatbot buttons -->
+<div style="position:fixed;right:20px;bottom:90px;z-index:2000;display:flex;flex-direction:column;gap:8px;">
+  <button id="teacherBtn" class="btn btn-warning rounded-circle" style="width:48px;height:48px;">👩‍🏫</button>
+  <button id="chatBtn" class="btn btn-primary rounded-circle" style="width:48px;height:48px;">🤖</button>
+</div>
+
+<!-- Chatbot modal -->
+<div class="modal fade" id="chatModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-bottom-right">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">CampusBot</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="chatArea" style="height:160px;overflow:auto;background:#f8f9fa;padding:8px;border-radius:6px;margin-bottom:8px;"></div>
+        <div class="mb-2">
+          <small>Quick questions:</small>
+          <div class="d-flex gap-2 mt-1">
+            <button class="btn btn-sm btn-outline-secondary quick-q">How do I mark attendance?</button>
+            <button class="btn btn-sm btn-outline-secondary quick-q">Open CGPA</button>
+            <button class="btn btn-sm btn-outline-secondary quick-q">Upcoming events</button>
+          </div>
+        </div>
+        <div class="input-group">
+          <input id="chatInput" class="form-control form-control-sm" placeholder="Ask about attendance, CGPA, events..." />
+          <button id="sendChat" class="btn btn-sm btn-primary">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Teacher modal -->
+<div class="modal fade" id="teacherModal" tabindex="-1" aria-hidden="true">
+  <div class="modal-dialog modal-sm modal-dialog-bottom-right">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title">Contact Teacher</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+      </div>
+      <div class="modal-body">
+        <div id="teacherArea" style="height:160px;overflow:auto;background:#fff7e6;padding:8px;border-radius:6px;margin-bottom:8px;border:1px solid #ffe8a6;"></div>
+        <div class="input-group">
+          <input id="teacherInput" class="form-control form-control-sm" placeholder="Ask your teacher..." />
+          <button id="sendTeacher" class="btn btn-sm btn-warning">Send</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+  // chatbot and teacher modal interactions
+  const teacherBtn = document.getElementById('teacherBtn');
+  const chatBtn = document.getElementById('chatBtn');
+  const chatModalEl = document.getElementById('chatModal');
+  const teacherModalEl = document.getElementById('teacherModal');
+  const chatModal = new bootstrap.Modal(chatModalEl);
+  const teacherModal = new bootstrap.Modal(teacherModalEl);
+  chatBtn.addEventListener('click', ()=> chatModal.show());
+  teacherBtn.addEventListener('click', ()=> teacherModal.show());
+
+  document.getElementById('sendChat').addEventListener('click', ()=>{
+    const input = document.getElementById('chatInput');
+    const text = input.value.trim(); if (!text) return;
+    const area = document.getElementById('chatArea');
+    const msg = document.createElement('div'); msg.innerHTML = '<div class="text-end"><small>You:</small><div>'+text+'</div></div>';
+    area.appendChild(msg); area.scrollTop = area.scrollHeight; input.value = '';
+    // canned bot replies
+    const resp = document.createElement('div'); resp.innerHTML = '<div class="text-start"><small>CampusBot:</small><div>' + cannedReply(text) + '</div></div>';
+    setTimeout(()=>{ area.appendChild(resp); area.scrollTop = area.scrollHeight; }, 600);
+  });
+
+  document.querySelectorAll('.quick-q').forEach(b=> b.addEventListener('click', (e)=>{ document.getElementById('chatInput').value = e.target.innerText; document.getElementById('sendChat').click(); }));
+
+  document.getElementById('sendTeacher').addEventListener('click', ()=>{
+    const input = document.getElementById('teacherInput');
+    const text = input.value.trim(); if (!text) return;
+    const area = document.getElementById('teacherArea');
+    const msg = document.createElement('div'); msg.innerHTML = '<div class="text-end"><small>You to Teacher:</small><div>'+text+'</div></div>';
+    area.appendChild(msg); area.scrollTop = area.scrollHeight; input.value = '';
+    // simulated teacher reply
+    const reply = document.createElement('div'); reply.innerHTML = '<div class="text-start"><small>Teacher:</small><div>Thanks for your question. I will look into this and get back to you shortly.</div></div>';
+    setTimeout(()=>{ area.appendChild(reply); area.scrollTop = area.scrollHeight; }, 1200);
+  });
+
+  // teacher marking handlers
+  document.querySelectorAll('.t-mark').forEach(btn => btn.addEventListener('click', async (e)=>{
+    const studentId = btn.getAttribute('data-student');
+    const subjectId = document.getElementById('t-subject').value;
+    const checkbox = document.querySelector('.t-present[data-student="'+studentId+'"]');
+    const present = checkbox && checkbox.checked;
+    const params = new URLSearchParams({subjectId, studentId, present});
+    const res = await fetch('/api/attendance/checkin', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: params});
+    const j = await res.json();
+    if (j.status === 'ok') {
+      btn.textContent = 'Saved'; setTimeout(()=> btn.textContent = 'Save', 1000);
+    }
+  }));
+
+  // student query submit (for students to ask teachers)
+  document.querySelectorAll('.send-query').forEach(b => b.addEventListener('click', async ()=>{
+    const to = b.getAttribute('data-to');
+    const input = document.getElementById('teacherInput');
+    const question = input.value.trim(); if (!question) return;
+    const params = new URLSearchParams({to, question});
+    await fetch('/student/query', {method:'POST', headers:{'Content-Type':'application/x-www-form-urlencoded'}, body: params});
+    input.value = '';
+    alert('Query sent to teacher');
+  }));
+
+  function cannedReply(q) {
+    q = q.toLowerCase();
+    if (q.includes('attendance')) return 'Open the Attendance page to mark or view attendance. You can select a subject and date.';
+    if (q.includes('cgpa')) return 'Use the CGPA calculator to add courses and grades. It updates live.';
+    if (q.includes('events') || q.includes('booking')) return 'Visit Events & Booking to RSVP for campus events.';
+    return 'I can help with Attendance, CGPA, Events and Progress. Try: "How do I mark attendance?"';
+  }
+</script>
+
+</body>
+</html>

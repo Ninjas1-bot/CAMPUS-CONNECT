@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+  <title>Progress - Campus Connect</title>
+</head>
+<body>
+<div class="container py-4">
+  <h1>Progress for <span th:text="${student.name}"></span></h1>
+  <p><a href="/dashboard" class="btn btn-sm btn-outline-secondary mb-2">← Back to Dashboard</a></p>
+
+  <div class="card mb-3">
+    <div class="card-body">
+      <h5 class="card-title">Course Progress</h5>
+      <p>Overall: <strong th:text="${student.progress}"></strong></p>
+      <div class="progress">
+        <div class="progress-bar" role="progressbar" th:style="${'width:' + student.progress + '%'}" th:text="${student.progress + '%'}"></div>
+      </div>
+    </div>
+  </div>
+
+  <a class="btn btn-secondary" href="/cgpa">Open CGPA Calculator</a>
+
+  <!-- Hidden subject selector populated by server so JS can pick a subject id reliably -->
+  <select id="subjectSelect" style="display:none">
+    <option th:each="s : ${subjects}" th:value="${s.id}" th:text="${s.name}"></option>
+  </select>
+
+  <div class="row mt-4">
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h5>Attendance (recent)</h5>
+          <canvas id="progressAttendanceChart" height="120"></canvas>
+        </div>
+      </div>
+    </div>
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-body">
+          <h5>Progress Snapshot</h5>
+          <canvas id="progressChart" height="120"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script th:inline="javascript">
+/*<![CDATA[*/
+  const progressMap = /*[[${student.progress}]]*/ {};
+/*]]>*/
+
+  async function loadProgressAndAttendance() {
+    const select = document.getElementById('subjectSelect');
+    if (!select || select.options.length === 0) return;
+    const chosen = select.options[0].value;
+    const res = await fetch('/api/attendance/history?subjectId=' + encodeURIComponent(chosen));
+    const j = await res.json();
+    const labels = Object.keys(j.history || {});
+    const data = labels.map(l => j.history[l]);
+    const ctx = document.getElementById('progressAttendanceChart').getContext('2d');
+    new Chart(ctx, { type:'line', data:{labels, datasets:[{label:'Present', data, borderColor:'#0d6efd', tension:0.3}]}, options:{responsive:true} });
+
+    const pLabels = Object.keys(progressMap || {});
+    const pData = pLabels.map(k => progressMap[k]);
+    const ctx2 = document.getElementById('progressChart').getContext('2d');
+    new Chart(ctx2, { type:'doughnut', data:{labels:pLabels, datasets:[{data:pData, backgroundColor:['#198754','#0d6efd','#ffc107','#dc3545']} ]}, options:{responsive:true} });
+  }
+  document.addEventListener('DOMContentLoaded', loadProgressAndAttendance);
+</script>
+</body>
+</html>
